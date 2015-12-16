@@ -479,7 +479,7 @@ static void drop_channel(u8 channel_id) {
 }
 
 /** Disable any tracking channel that has lost phase lock or is
-    flagged unhealthy in ephem. */
+    flagged unhealthy in ephem or alert flag. */
 static void manage_track()
 {
   for (u8 i=0; i<nap_track_n_channels; i++) {
@@ -497,9 +497,9 @@ static void manage_track()
 
     acq_status_t *acq = &acq_status[sid_to_index(ch->sid)];
 
-    /* Is ephemeris marked unhealthy? */
+    /* Is ephemeris or alert flag marked unhealthy?*/
     const ephemeris_t *e = ephemeris_get(ch->sid);
-    if (e->valid && !e->healthy) {
+    if (ch->nav_msg.alert || (e->valid && !e->healthy)) {
       log_info("%s unhealthy, dropping", buf);
       drop_channel(i);
       acq->state = ACQ_PRN_UNHEALTHY;

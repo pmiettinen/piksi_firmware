@@ -97,8 +97,8 @@ static msg_t nav_msg_thread(void *arg)
       ephemeris_new(&e);
 
       ephemeris_t *eph = ephemeris_get(ch->sid);
-      if (!eph->healthy) {
-        log_info("%s unhealthy", buf);
+      if (!eph->valid) {
+        log_info("%s ephemeris is invalid", buf);
       } else {
         msg_ephemeris_t msg;
         pack_ephemeris(eph, &msg);
