@@ -528,6 +528,7 @@ void tracking_update_measurement(u8 channel, channel_measurement_t *meas)
     meas->carrier_phase += 0.5;
   }
   meas->lock_counter = chan->lock_counter;
+  meas->alert = chan->nav_msg.alert;
 }
 
 /** Send tracking state SBP message.

@@ -425,7 +425,7 @@ static msg_t solution_thread(void *arg)
     const channel_measurement_t *p_meas[n_ready];
     navigation_measurement_t *p_nav_meas[n_ready];
     const ephemeris_t *p_e_meas[n_ready];
-    for (u32 i=0; i<n_ready; i++) {
+    for (u8 i=0; i<n_ready; i++) {
       p_meas[i] = &meas[i];
       p_nav_meas[i] = &nav_meas[i];
       p_e_meas[i] = ephemeris_get(meas[i].sid);
@@ -436,14 +436,26 @@ static msg_t solution_thread(void *arg)
                                 (double)((u32)nav_tc)/SAMPLE_FREQ, p_e_meas);
     ephemeris_unlock();
 
+    /* Exclude unhealthy sats from solution */
+    static navigation_measurement_t nav_meas_healthy[MAX_CHANNELS];
+    u8 n_ready_healthy = 0;
+    for (u8 i=0; i<n_ready; i++) {
+      if (nav_meas[i].alert || !nav_meas[i].healthy) {
+        continue;
+      }
+
+      memcpy(&nav_meas_healthy[n_ready_healthy], &nav_meas[i], sizeof(*nav_meas));
+      n_ready_healthy++;
+    }
+
     static navigation_measurement_t nav_meas_tdcp[MAX_CHANNELS];
-    u8 n_ready_tdcp = tdcp_doppler(n_ready, nav_meas, n_ready_old,
+    u8 n_ready_tdcp = tdcp_doppler(n_ready_healthy, nav_meas_healthy, n_ready_old,
                                    nav_meas_old, nav_meas_tdcp);
 
     /* Store current observations for next time for
      * TDCP Doppler calculation. */
-    memcpy(nav_meas_old, nav_meas, sizeof(nav_meas));
-    n_ready_old = n_ready;
+    memcpy(nav_meas_old, nav_meas_healthy, sizeof(nav_meas_healthy));
+    n_ready_old = n_ready_healthy;
 
     if (n_ready_tdcp < 4) {
       /* Not enough sats to compute PVT */
