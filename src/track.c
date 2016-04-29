@@ -303,6 +303,7 @@ double propagate_code_phase(double code_phase, double carrier_freq,
  * \param ref_sample_count      NAP sample count at which code_phase was acquired.
  * \param code_phase            Code phase
  * \param carrier_freq          Carrier frequency Doppler (Hz).
+ * \param chips_to_correlate    Chips to correlate.
  * \param cn0_init              Initial C/N0 estimate (dBHz).
  * \param elevation             Elevation (deg).
  *
@@ -310,7 +311,8 @@ double propagate_code_phase(double code_phase, double carrier_freq,
  */
 bool tracker_channel_init(tracker_channel_id_t id, gnss_signal_t sid,
                           u32 ref_sample_count, float code_phase,
-                          float carrier_freq, float cn0_init, s8 elevation)
+                          float carrier_freq, u32 chips_to_correlate,
+                          float cn0_init, s8 elevation)
 {
   tracker_channel_t *tracker_channel = tracker_channel_get(id);
 
@@ -351,7 +353,7 @@ bool tracker_channel_init(tracker_channel_id_t id, gnss_signal_t sid,
   log_warn("---- ADEL debug %s:%d", __FILE__, __LINE__);
 
   nap_track_init(tracker_channel->info.nap_channel, sid, ref_sample_count,
-                 carrier_freq, code_phase);
+                 carrier_freq, code_phase, chips_to_correlate);
 
   return true;
 }

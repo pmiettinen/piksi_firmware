@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014 Swift Navigation Inc.
+ * Copyright (C) 2011-2014,2016 Swift Navigation Inc.
  * Contact: Fergus Noble <fergus@swift-nav.com>
  *
  * This source is subject to the license found in the file 'LICENSE' which must
@@ -25,6 +25,7 @@
 #include <libswiftnav/coord_system.h>
 #include <libswiftnav/linear_algebra.h>
 #include <libswiftnav/signal.h>
+#include <libswiftnav/constants.h>
 
 #include "main.h"
 #include "board/nap/track_channel.h"
@@ -402,6 +403,7 @@ static void manage_acq()
       .sample_count = acq_result.sample_count,
       .carrier_freq = acq_result.cf,
       .code_phase = acq_result.cp,
+      .chips_to_correlate = GPS_L1CA_CHIPS_NUM,
       .cn0_init = acq_result.cn0,
       .elevation = TRACKING_ELEVATION_UNKNOWN
     };
@@ -722,6 +724,7 @@ static void manage_tracking_startup(void)
                              startup_params.sample_count,
                              startup_params.code_phase,
                              startup_params.carrier_freq,
+                             startup_params.chips_to_correlate,
                              startup_params.cn0_init,
                              TRACKING_ELEVATION_UNKNOWN)) {
       log_error("tracker channel init failed");

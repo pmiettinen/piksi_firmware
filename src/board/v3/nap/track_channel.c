@@ -50,11 +50,10 @@ static struct {
   u32 len;
 } nap_ch_state[NAP_MAX_N_TRACK_CHANNELS];
 
-static u32 calc_length_samples(code_t code_id, u8 codes, s32 cp_start, u32 cp_rate)
+static u32 calc_length_samples(u32 chips_to_correlate, s32 cp_start, u32 cp_rate)
 {
-  u16 chips = codes * code_to_chip_num(code_id);
-  u64 cp_units = (1ULL << NAP_TRACK_CODE_PHASE_FRACTIONAL_WIDTH) * chips
-                 - cp_start;
+  u64 cp_units = (1ULL << NAP_TRACK_CODE_PHASE_FRACTIONAL_WIDTH) *
+                 chips_to_correlate - cp_start;
   u32 samples = cp_units / cp_rate;
   return samples;
 }
@@ -154,7 +153,7 @@ u8 sid_to_nap_code(gnss_signal_t sid)
 }
 
 void nap_track_init(u8 channel, gnss_signal_t sid, u32 ref_timing_count,
-                   float carrier_freq, float code_phase)
+                   float carrier_freq, float code_phase, u32 chips_to_correlate)
 {
   u16 control;
   u32 now = NAP->TIMING_COUNT;
@@ -197,7 +196,7 @@ void nap_track_init(u8 channel, gnss_signal_t sid, u32 ref_timing_count,
                                    NAP_TRACK_CARRIER_FREQ_UNITS_PER_HZ;
   NAP->TRK_CH[channel].CODE_PINC = cp_rate;
 
-  u32 length = calc_length_samples(sid.code, 1, 0, cp_rate) + 1;
+  u32 length = calc_length_samples(chips_to_correlate, 0, cp_rate) + 1;
   nap_ch_state[channel].len = NAP->TRK_CH[channel].LENGTH = length;
   nap_ch_state[channel].code_phase = (NAP->TRK_CH[channel].LENGTH) * cp_rate;
   NAP->TRK_CONTROL |= (1 << channel); /* Set to start on the timing strobe */
@@ -214,8 +213,8 @@ void nap_track_init(u8 channel, gnss_signal_t sid, u32 ref_timing_count,
   chThdSleep(CH_CFG_ST_FREQUENCY * ceil((float)(track_count - now)/SAMPLE_FREQ));
 }
 
-void nap_track_update(code_t code, u8 channel, double carrier_freq,
-                      double code_phase_rate, u8 rollover_count,
+void nap_track_update(u8 channel, double carrier_freq,
+                      double code_phase_rate, u32 chips_to_correlate,
                       u8 corr_spacing)
 {
   (void)corr_spacing; /* This is always written as 0 now... */
@@ -224,7 +223,7 @@ void nap_track_update(code_t code, u8 channel, double carrier_freq,
   NAP->TRK_CH[channel].CARR_PINC = -carrier_freq *
                                    NAP_TRACK_CARRIER_FREQ_UNITS_PER_HZ;
   NAP->TRK_CH[channel].CODE_PINC = cp_rate_fp;
-  NAP->TRK_CH[channel].LENGTH = calc_length_samples(code, rollover_count + 1,
+  NAP->TRK_CH[channel].LENGTH = calc_length_samples(chips_to_correlate,
                                     nap_ch_state[channel].code_phase,
                                     cp_rate_fp);
 

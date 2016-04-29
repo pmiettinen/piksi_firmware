@@ -23,6 +23,7 @@
 #include <libswiftnav/track.h>
 
 #include <string.h>
+#include <assert.h>
 
 #include "settings.h"
 #include "signal.h"
@@ -34,6 +35,23 @@
 
 /* Alias detection interval [ms] */
 #define L2C_ALIAS_DETECT_INTERVAL_MS     500
+
+/* Number of chips to integrate over in the short cycle interval [chips]
+ * The value must be within [0..10230].
+ */
+#define L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS 1000
+
+/* Number of chips to integrate over in the short cycle interval [ms] */
+#define L2CM_TRACK_SHORT_CYCLE_INTERVAL_MS \
+  (1e3 * L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS / GPS_CA_CHIPPING_RATE)
+
+/* Number of chips to integrate over in the long cycle interval [chips] */
+#define L2CM_TRACK_LONG_CYCLE_INTERVAL_CHIPS \
+  (GPS_L2CM_CHIPS_NUM - L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS)
+
+/* Number of chips to integrate over in the long cycle interval [ms] */
+#define L2CM_TRACK_LONG_CYCLE_INTERVAL_MS \
+  (L2C_COHERENT_INTEGRATION_TIME_MS - L2CM_TRACK_SHORT_CYCLE_INTERVAL_MS)
 
 #define L2CM_TRACK_SETTING_SECTION "l2cm_track"
 
@@ -237,7 +255,9 @@ void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
   /* Start the tracking channel */
   if (!tracker_channel_init((tracker_channel_id_t)l2cm_channel_id, sid,
                             ref_sample_count, code_phase,
-                            carrier_freq, cn0_init, elevation)) {
+                            carrier_freq,
+                            L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS,
+                            cn0_init, elevation)) {
     log_error("tracker channel init for L2 CM PRN %u failed", sid.sat);
   } else {
     log_info("L2 CM handover done. PRN: %u", sid.sat);
@@ -269,6 +289,7 @@ static void tracker_gps_l2cm_init(const tracker_channel_info_t *channel_info,
 
   const struct loop_params *l = &loop_params_stage;
 
+  assert(20 == l->coherent_ms);
   data->int_ms = l->coherent_ms;
 
   aided_tl_init(&(data->tl_state), 1e3 / data->int_ms,
@@ -334,7 +355,9 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
     }
   }
 
-  u8 int_ms = data->short_cycle ? 1 : (data->int_ms - 1);
+  u8 int_ms = data->short_cycle ?
+              L2CM_TRACK_SHORT_CYCLE_INTERVAL_MS :
+              L2CM_TRACK_LONG_CYCLE_INTERVAL_MS;
   common_data->TOW_ms = tracker_tow_update(channel_info->context,
                                            common_data->TOW_ms,
                                            int_ms);
@@ -353,7 +376,8 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
 
   if (short_cycle) {
     tracker_retune(channel_info->context, common_data->carrier_freq,
-                   common_data->code_phase_rate, 0);
+                   common_data->code_phase_rate,
+                   L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS);
     return;
   }
 
@@ -365,7 +389,8 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
 
   /* Update C/N0 estimate */
   common_data->cn0 = cn0_est(&data->cn0_est,
-                            cs[1].I/data->int_ms, cs[1].Q/data->int_ms);
+                            cs[1].I / data->int_ms,
+                            cs[1].Q / data->int_ms);
   if (common_data->cn0 > track_cn0_drop_thres) {
     common_data->cn0_above_drop_thres_count = common_data->update_count;
   }
@@ -445,7 +470,7 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
 
   tracker_retune(channel_info->context, common_data->carrier_freq,
                  common_data->code_phase_rate,
-                 data->int_ms);
+                 L2CM_TRACK_LONG_CYCLE_INTERVAL_CHIPS);
 }
 
 /** Parse a string describing the tracking loop filter parameters into

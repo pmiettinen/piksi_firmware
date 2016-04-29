@@ -72,18 +72,18 @@ void tracker_correlations_read(tracker_context_t *context, corr_t *cs,
  * \param context             Tracker context.
  * \param carrier_freq_fp     Carrier frequency in NAP register units.
  * \param code_phase_rate_fp  Code phase rate in NAP register units.
- * \param rollover_count      Number of code cycles to integrate over.
+ * \param chips_to_correlate  Number of code chips to integrate over.
  */
 void tracker_retune(tracker_context_t *context, double carrier_freq,
-                    double code_phase_rate, u8 rollover_count)
+                    double code_phase_rate, u32 chips_to_correlate)
 {
   const tracker_channel_info_t *channel_info;
   tracker_internal_data_t *internal_data;
   tracker_internal_context_resolve(context, &channel_info, &internal_data);
 
   /* Write NAP UPDATE register. */
-  nap_track_update(channel_info->sid.code, channel_info->nap_channel,
-                   carrier_freq, code_phase_rate, rollover_count, 0);
+  nap_track_update(channel_info->nap_channel,
+                   carrier_freq, code_phase_rate, chips_to_correlate, 0);
 }
 
 /** Update the TOW for a tracker channel.
