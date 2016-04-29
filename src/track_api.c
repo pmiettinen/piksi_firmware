@@ -82,8 +82,8 @@ void tracker_retune(tracker_context_t *context, double carrier_freq,
   tracker_internal_context_resolve(context, &channel_info, &internal_data);
 
   /* Write NAP UPDATE register. */
-  nap_track_update(channel_info->nap_channel, carrier_freq,
-                   code_phase_rate, rollover_count, 0);
+  nap_track_update(channel_info->sid.code, channel_info->nap_channel,
+                   carrier_freq, code_phase_rate, rollover_count, 0);
 }
 
 /** Update the TOW for a tracker channel.
