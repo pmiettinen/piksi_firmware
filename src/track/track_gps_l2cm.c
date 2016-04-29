@@ -37,7 +37,7 @@
 #define L2C_ALIAS_DETECT_INTERVAL_MS     500
 
 /* Number of chips to integrate over in the short cycle interval [chips]
- * The value must be within [0..10230].
+ * The value must be within [0..(2 * 10230)].
  */
 #define L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS 1000
 
@@ -47,7 +47,7 @@
 
 /* Number of chips to integrate over in the long cycle interval [chips] */
 #define L2CM_TRACK_LONG_CYCLE_INTERVAL_CHIPS \
-  (GPS_L2CM_CHIPS_NUM - L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS)
+  (2 * GPS_L2CM_CHIPS_NUM - L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS)
 
 /* Number of chips to integrate over in the long cycle interval [ms] */
 #define L2CM_TRACK_LONG_CYCLE_INTERVAL_MS \
@@ -265,11 +265,11 @@ void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
   tracking_unlock();
 
   /* TODO: remove this */
-  {
-    void tracker_enable_iq(tracker_channel_id_t id);
+  /* { */
+  /*   void tracker_enable_iq(tracker_channel_id_t id); */
 
-    tracker_enable_iq(l2cm_channel_id);
-  }
+  /*   tracker_enable_iq(l2cm_channel_id); */
+  /* } */
 
   /* Start the decoder channel */
   if (!decoder_channel_init((u8)l2cm_channel_id, sid)) {
@@ -333,6 +333,7 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
                                     tracker_data_t *tracker_data)
 {
   gps_l2cm_tracker_data_t *data = tracker_data;
+  u32 prev_sample_count = common_data->sample_count;
 
   /* Read early ([0]), prompt ([1]) and late ([2]) correlations. */
   if (data->short_cycle) {
@@ -354,6 +355,10 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
       data->cs[i].Q += cs[i].Q;
     }
   }
+
+  log_warn("ADEL I:%d,Q:%d,diff:%f",
+           data->cs[1].I, data->cs[1].Q,
+           1e3 * (common_data->sample_count - prev_sample_count) / 99.375e6);
 
   u8 int_ms = data->short_cycle ?
               L2CM_TRACK_SHORT_CYCLE_INTERVAL_MS :
