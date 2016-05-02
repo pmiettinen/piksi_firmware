@@ -211,6 +211,7 @@ void nap_track_init(u8 channel, gnss_signal_t sid, u32 ref_timing_count,
            track_count,sid_to_init_g1(sid),(float)cp_rate,length);
 
   chThdSleep(CH_CFG_ST_FREQUENCY * ceil((float)(track_count - now)/SAMPLE_FREQ));
+  log_warn("ADEL slept: %f ms", 1e3 * (NAP->TIMING_COUNT - now) / SAMPLE_FREQ);
 }
 
 void nap_track_update(u8 channel, double carrier_freq,

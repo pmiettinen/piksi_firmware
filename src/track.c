@@ -306,19 +306,20 @@ double propagate_code_phase(double code_phase, double carrier_freq,
  * \param chips_to_correlate    Chips to correlate.
  * \param cn0_init              Initial C/N0 estimate (dBHz).
  * \param elevation             Elevation (deg).
+ * \param post_init_cb          Post init callback function.
  *
  * \return true if the tracker channel was initialized, false otherwise.
  */
 bool tracker_channel_init(tracker_channel_id_t id, gnss_signal_t sid,
                           u32 ref_sample_count, float code_phase,
                           float carrier_freq, u32 chips_to_correlate,
-                          float cn0_init, s8 elevation)
+                          float cn0_init, s8 elevation,
+                          tracker_interface_function_t post_init_cb)
 {
   tracker_channel_t *tracker_channel = tracker_channel_get(id);
 
   const tracker_interface_t *tracker_interface;
   tracker_t *tracker;
-  log_warn("---- ADEL debug %s:%d", __FILE__, __LINE__);
   if(!tracker_channel_runnable(tracker_channel, sid, &tracker,
                                &tracker_interface)) {
     return false;
@@ -338,7 +339,7 @@ bool tracker_channel_init(tracker_channel_id_t id, gnss_signal_t sid,
     common_data_init(&tracker_channel->common_data, ref_sample_count,
                      carrier_freq, cn0_init, sid.code);
 
-                     log_warn("---- ADEL debug %s:%d", __FILE__, __LINE__);
+    log_warn("ADEL tracker_init carrier_freq:%f", carrier_freq);
 
     internal_data_init(&tracker_channel->internal_data, sid);
     interface_function(tracker_channel, tracker_interface->init);
@@ -350,10 +351,13 @@ bool tracker_channel_init(tracker_channel_id_t id, gnss_signal_t sid,
     event(tracker_channel, EVENT_ENABLE);
   }
   tracker_channel_unlock(tracker_channel);
-  log_warn("---- ADEL debug %s:%d", __FILE__, __LINE__);
 
   nap_track_init(tracker_channel->info.nap_channel, sid, ref_sample_count,
                  carrier_freq, code_phase, chips_to_correlate);
+
+  if (post_init_cb) {
+    interface_function(tracker_channel, post_init_cb);
+  }
 
   return true;
 }

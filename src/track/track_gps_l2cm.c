@@ -159,6 +159,22 @@ void track_gps_l2cm_register(void)
   tracker_interface_register(&tracker_interface_list_element_gps_l2cm);
 }
 
+static void tracker_post_init(const tracker_channel_info_t *channel_info,
+                              tracker_common_data_t *common_data,
+                              tracker_data_t *tracker_data)
+{
+  /* double code_phase_rate = (1.0 + carrier_freq / GPS_L2_HZ) * */
+  /*                          GPS_CA_CHIPPING_RATE; */
+  (void)tracker_data;
+
+  tracker_retune(channel_info->context,
+                 common_data->carrier_freq, common_data->code_phase_rate,
+                 L2CM_TRACK_LONG_CYCLE_INTERVAL_CHIPS);
+
+  log_warn_sid(channel_info->sid, "L2C postinit: %f,%f",
+               (float)common_data->carrier_freq, (float)common_data->code_phase_rate);
+}
+
 /** Do L1C/A to L2 CM handover.
  *
  * The condition for the handover is the availability of bitsync on L1 C/A
@@ -227,7 +243,6 @@ void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
     /*     decoder_channel_available(i, sid)) { */
     if (tracker_channel_available(i, sid)) {
       l2cm_channel_id = i;
-      log_warn("ADEL No tracking channel is available for L2C");
       break;
     }
   }
@@ -244,7 +259,7 @@ void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
   double carrier_freq = tracking_channel_carrier_freq_get(nap_channel) *
                         GPS_L2_HZ / GPS_L1_HZ;
 
-  log_debug("L2C Dopp %f", carrier_freq);
+  log_warn("L2C Dopp %f", carrier_freq);
 
   /* get initial cn0 from parent L1 channel */
   float cn0_init = tracking_channel_cn0_get(nap_channel);
@@ -257,7 +272,7 @@ void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
                             ref_sample_count, code_phase,
                             carrier_freq,
                             L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS,
-                            cn0_init, elevation)) {
+                            cn0_init, elevation, tracker_post_init)) {
     log_error("tracker channel init for L2 CM PRN %u failed", sid.sat);
   } else {
     log_info("L2 CM handover done. PRN: %u", sid.sat);

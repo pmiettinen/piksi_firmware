@@ -726,7 +726,8 @@ static void manage_tracking_startup(void)
                              startup_params.carrier_freq,
                              startup_params.chips_to_correlate,
                              startup_params.cn0_init,
-                             TRACKING_ELEVATION_UNKNOWN)) {
+                             TRACKING_ELEVATION_UNKNOWN,
+                             NULL)) {
       log_error("tracker channel init failed");
     }
 
