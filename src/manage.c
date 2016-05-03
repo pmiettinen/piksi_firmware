@@ -444,7 +444,7 @@ static u8 manage_track_new_acq(gnss_signal_t sid)
    */
   for (u8 i=0; i<nap_track_n_channels; i++) {
     if (tracker_channel_available(i, sid) &&
-        decoder_channel_available(i, sid)) {
+        (decoder_channel_available(i, sid) || (sid.code == 1))) {
       return i;
     }
   }
@@ -657,12 +657,12 @@ u8 tracking_channels_ready()
   return n_ready;
 }
 
-void tracking_lock(void)
+static void tracking_lock(void)
 {
   chMtxTryLock(&tracking_startup_mutex);
 }
 
-void tracking_unlock(void)
+static void tracking_unlock(void)
 {
   chMtxUnlock(&tracking_startup_mutex);
 }

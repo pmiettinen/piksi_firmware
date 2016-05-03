@@ -201,9 +201,16 @@ void nap_track_init(u8 channel, gnss_signal_t sid, u32 ref_timing_count,
   nap_ch_state[channel].code_phase = (NAP->TRK_CH[channel].LENGTH) * cp_rate;
   NAP->TRK_CONTROL |= (1 << channel); /* Set to start on the timing strobe */
 
+  float adel_length = 1e3 * length / SAMPLE_FREQ;
+  log_warn_sid(sid, "ADEL %s: LENGTH=%f ms", __FUNCTION__, adel_length);
+
   COMPILER_BARRIER();
 
+  u32 tmp = track_count - SAMPLE_FREQ / GPS_CA_CHIPPING_RATE;
   NAP->TRK_TIMING_COMPARE = track_count - SAMPLE_FREQ / GPS_CA_CHIPPING_RATE;
+
+  float adel = 1e3 * NAP->TIMING_COUNT / SAMPLE_FREQ;
+  log_warn_sid(sid, "ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
 
   log_warn("ADEL nap_track_init code=%d, ch=%d, prn=%d, cf=%f, cp=%f, ctrl=0x%04X, track_count=%u,G1=%o,cp_rate=%f,length=%d",
            sid.code, (int)channel, sid.sat,
@@ -211,7 +218,15 @@ void nap_track_init(u8 channel, gnss_signal_t sid, u32 ref_timing_count,
            track_count,sid_to_init_g1(sid),(float)cp_rate,length);
 
   chThdSleep(CH_CFG_ST_FREQUENCY * ceil((float)(track_count - now)/SAMPLE_FREQ));
-  log_warn("ADEL slept: %f ms", 1e3 * (NAP->TIMING_COUNT - now) / SAMPLE_FREQ);
+  //chThdSleepMilliseconds(.5 + 1e3 * (u32)(tmp - now) / SAMPLE_FREQ);
+
+  if (sid.code == 1) {
+    log_warn_sid(sid, "ADEL %f ms", 1e3 * (tmp - now) / SAMPLE_FREQ);
+    adel = 1e3 * NAP->TIMING_COUNT / SAMPLE_FREQ;
+    log_warn_sid(sid, "ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
+  }
+
+  //log_warn("ADEL slept: %f ms", 1e3 * (NAP->TIMING_COUNT - now) / SAMPLE_FREQ);
 }
 
 void nap_track_update(u8 channel, double carrier_freq,
@@ -224,9 +239,16 @@ void nap_track_update(u8 channel, double carrier_freq,
   NAP->TRK_CH[channel].CARR_PINC = -carrier_freq *
                                    NAP_TRACK_CARRIER_FREQ_UNITS_PER_HZ;
   NAP->TRK_CH[channel].CODE_PINC = cp_rate_fp;
-  NAP->TRK_CH[channel].LENGTH = calc_length_samples(chips_to_correlate,
+  u32 length = calc_length_samples(chips_to_correlate,
                                     nap_ch_state[channel].code_phase,
                                     cp_rate_fp);
+  NAP->TRK_CH[channel].LENGTH = length;
+
+  float adel_length = 1e3 * length / SAMPLE_FREQ;
+  log_warn("ADEL %s: LENGTH=%f ms", __FUNCTION__, adel_length);
+
+  float adel = 1e3 * NAP->TIMING_COUNT / SAMPLE_FREQ;
+  log_warn("ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
 
   volatile u16 cp_int = NAP->TRK_CH[channel].CODE_PHASE_INT;
   if ((cp_int != 0x3fe)) /* Sanity check, we should be just before rollover */
