@@ -104,7 +104,7 @@ typedef struct {
   cn0_est_state_t cn0_est;     /**< C/N0 Estimator. */
   u8 int_ms;                   /**< Integration length. */
   bool short_cycle;            /**< Set to true when a short 1ms integration is requested. */
-  bool startup;                /**< Set to true at tracker start-up phase. */
+  u8 startup;                  /**< An indicator of start-up phase. */
   u8 stage;                    /**< 0 = First-stage. 1 ms integration.
                                     1 = Second-stage. After nav bit sync,
                                     retune loop filters and typically (but
@@ -300,7 +300,7 @@ static void tracker_gps_l2cm_init(const tracker_channel_info_t *channel_info,
                 l->carr_fll_aid_gain);
 
   data->short_cycle = true;
-  data->startup = true;
+  data->startup = 2;
 
   /* Initialise C/N0 estimator */
   cn0_est_init(&data->cn0_est, 1e3 / data->int_ms, common_data->cn0,
@@ -330,6 +330,39 @@ static void tracker_gps_l2cm_disable(const tracker_channel_info_t *channel_info,
   (void)tracker_data;
 }
 
+static void handle_tracker_startup(const tracker_channel_info_t *channel_info,
+                                   tracker_common_data_t *common_data,
+                                   gps_l2cm_tracker_data_t *data)
+{
+  corr_t cs[3];
+
+  switch (data->startup) {
+  case 2:
+    tracker_correlations_read(channel_info->context, data->cs,
+                              &common_data->sample_count,
+                              &common_data->code_phase_early,
+                              &common_data->carrier_phase);
+    alias_detect_first(&data->alias_detect, data->cs[1].I, data->cs[1].Q);
+    break;
+
+  case 1:
+    tracker_correlations_read(channel_info->context, cs,
+                              &common_data->sample_count,
+                              &common_data->code_phase_early,
+                              &common_data->carrier_phase);
+    /* Accumulate two short cycle correlations */
+    for(int i = 0; i < 3; i++) {
+      data->cs[i].I += cs[i].I;
+      data->cs[i].Q += cs[i].Q;
+    }
+    break;
+
+  default:
+    assert(0);
+    break;
+  }
+}
+
 static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
                                     tracker_common_data_t *common_data,
                                     tracker_data_t *tracker_data)
@@ -337,24 +370,34 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
   gps_l2cm_tracker_data_t *data = tracker_data;
   u32 prev_sample_count = common_data->sample_count;
 
-  /* Read early ([0]), prompt ([1]) and late ([2]) correlations. */
-  if (data->short_cycle) {
-    tracker_correlations_read(channel_info->context, data->cs,
-                              &common_data->sample_count,
-                              &common_data->code_phase_early,
-                              &common_data->carrier_phase);
-    alias_detect_first(&data->alias_detect, data->cs[1].I, data->cs[1].Q);
+  if (data->startup) {
+    handle_tracker_startup(channel_info, common_data, data);
+    if (1 == data->startup) {
+      data->short_cycle = false; // start-up phase is over
+    }
+    if (data->startup) {
+      data->startup--;
+    }
   } else {
-    /* This is the end of the long cycle's correlations. */
-    corr_t cs[3];
-    tracker_correlations_read(channel_info->context, cs,
-                              &common_data->sample_count,
-                              &common_data->code_phase_early,
-                              &common_data->carrier_phase);
-    /* Accumulate short cycle correlations with long ones. */
-    for(int i = 0; i < 3; i++) {
-      data->cs[i].I += cs[i].I;
-      data->cs[i].Q += cs[i].Q;
+    /* Read early ([0]), prompt ([1]) and late ([2]) correlations. */
+    if (data->short_cycle) {
+      tracker_correlations_read(channel_info->context, data->cs,
+                                &common_data->sample_count,
+                                &common_data->code_phase_early,
+                                &common_data->carrier_phase);
+      alias_detect_first(&data->alias_detect, data->cs[1].I, data->cs[1].Q);
+    } else {
+      /* This is the end of the long cycle's correlations. */
+      corr_t cs[3];
+      tracker_correlations_read(channel_info->context, cs,
+                                &common_data->sample_count,
+                                &common_data->code_phase_early,
+                                &common_data->carrier_phase);
+      /* Accumulate short cycle correlations with long ones. */
+      for(int i = 0; i < 3; i++) {
+        data->cs[i].I += cs[i].I;
+        data->cs[i].Q += cs[i].Q;
+      }
     }
   }
 
