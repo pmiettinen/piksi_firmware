@@ -242,7 +242,7 @@ void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
   double carrier_freq = tracking_channel_carrier_freq_get(nap_channel) *
                         GPS_L2_HZ / GPS_L1_HZ;
 
-  log_warn("L2C Dopp %f", carrier_freq);
+  log_warn_sid(sid, "L2C Dopp %f", carrier_freq);
 
   /* get initial cn0 from parent L1 channel */
   float cn0_init = tracking_channel_cn0_get(nap_channel);
@@ -272,8 +272,11 @@ void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
   /*   tracker_enable_iq(l2cm_channel_id); */
   /* } */
 
-  float adel = 1e3 * NAP->TIMING_COUNT / SAMPLE_FREQ;
-  log_warn("ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
+  float adel = 1e3 * ref_sample_count / SAMPLE_FREQ;
+  log_warn_sid(sid, "ADEL %s: ref_sample_count=%f ms", __FUNCTION__, adel);
+
+  adel = 1e3 * NAP->TIMING_COUNT / SAMPLE_FREQ;
+  log_warn_sid(sid, "ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
 }
 
 static void tracker_gps_l2cm_init(const tracker_channel_info_t *channel_info,
@@ -318,7 +321,8 @@ static void tracker_gps_l2cm_init(const tracker_channel_info_t *channel_info,
                     (alias_detect_ms - 1) * 1e-3);
 
   float adel = 1e3 * NAP->TIMING_COUNT / SAMPLE_FREQ;
-  log_warn("ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
+  log_warn_sid(channel_info->sid,
+               "ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
 }
 
 static void tracker_gps_l2cm_disable(const tracker_channel_info_t *channel_info,
@@ -401,10 +405,16 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
     }
   }
 
-  float adel = 1e3 * NAP->TIMING_COUNT / SAMPLE_FREQ;
-  log_warn("ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
+  float adel = 1e3 * common_data->sample_count / SAMPLE_FREQ;
+  log_warn_sid(channel_info->sid,
+               "ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
 
-  log_warn("ADEL I:%d,Q:%d,diff:%f",
+  u16 cp_int = NAP->TRK_CH[channel_info->nap_channel].CODE_PHASE_INT;
+  u32 status = NAP->TRK_CH[channel_info->nap_channel].STATUS;
+  log_warn_sid(channel_info->sid,
+               "ADEL %s: cp_int=%u ms, status=0x%X", __FUNCTION__, (u32)cp_int, status);
+
+  log_warn_sid(channel_info->sid, "ADEL I:%d,Q:%d,diff:%f",
            data->cs[1].I, data->cs[1].Q,
            1e3 * (common_data->sample_count - prev_sample_count) / 99.375e6);
 

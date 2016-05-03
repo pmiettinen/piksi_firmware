@@ -213,8 +213,9 @@ void nap_track_init(u8 channel, gnss_signal_t sid, u32 ref_timing_count,
   log_warn_sid(sid, "ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
 
   if (sid.code == 1) {
-    log_warn("ADEL nap_track_init code=%d, ch=%d, prn=%d, cf=%f, cp=%f, ctrl=0x%04X, track_count=%u,G1=%o,cp_rate=%f,length=%d",
-             sid.code, (int)channel, sid.sat,
+    log_warn_sid(sid,
+                 "ADEL nap_track_init ch=%d, cf=%f, cp=%f, ctrl=0x%04X, track_count=%u,G1=%o,cp_rate=%f,length=%d",
+             (int)channel,
              carrier_freq, code_phase, control,
              track_count,sid_to_init_g1(sid),(float)cp_rate,length);
   }
@@ -223,7 +224,7 @@ void nap_track_init(u8 channel, gnss_signal_t sid, u32 ref_timing_count,
   //chThdSleepMilliseconds(.5 + 1e3 * (u32)(tmp - now) / SAMPLE_FREQ);
 
   if (sid.code == 1) {
-    log_warn_sid(sid, "ADEL %f ms", 1e3 * (tmp - now) / SAMPLE_FREQ);
+    log_warn_sid(sid, "ADEL %f ms", 1e3 * (u32)(tmp - ref_timing_count) / SAMPLE_FREQ);
     adel = 1e3 * NAP->TIMING_COUNT / SAMPLE_FREQ;
     log_warn_sid(sid, "ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
   }
