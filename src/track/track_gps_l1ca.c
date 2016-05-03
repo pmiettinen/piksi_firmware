@@ -345,7 +345,9 @@ static void tracker_gps_l1ca_update(const tracker_channel_info_t *channel_info,
     /* Indicate that a mode change has occurred. */
     common_data->mode_change_count = common_data->update_count;
 
-    do_l1ca_to_l2cm_handover(channel_info->sid.sat, channel_info->nap_channel,
+    do_l1ca_to_l2cm_handover(common_data->sample_count,
+                             channel_info->sid.sat,
+                             channel_info->nap_channel,
                              common_data->code_phase_early);
   }
 

@@ -194,7 +194,7 @@ void nap_track_init(u8 channel, gnss_signal_t sid, u32 ref_timing_count,
 
   NAP->TRK_CH[channel].CARR_PINC = -carrier_freq *
                                    NAP_TRACK_CARRIER_FREQ_UNITS_PER_HZ;
-  NAP->TRK_CH[channel].CODE_PINC = cp_rate;
+  NAP->TRK_CH[channel].CODE_PINC = (sid.code == 1) ? (cp_rate / 2) : cp_rate;
 
   u32 length = calc_length_samples(chips_to_correlate, 0, cp_rate) + 1;
   nap_ch_state[channel].len = NAP->TRK_CH[channel].LENGTH = length;

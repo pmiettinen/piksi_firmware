@@ -16,6 +16,9 @@
 #include <libswiftnav/common.h>
 
 void track_gps_l2cm_register(void);
-void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase);
+void do_l1ca_to_l2cm_handover(u32 sample_count,
+                              u16 sat,
+                              u8 nap_channel,
+                              float code_phase);
 
 #endif

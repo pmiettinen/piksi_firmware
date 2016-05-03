@@ -178,11 +178,15 @@ void track_gps_l2cm_register(void)
  *
  * The condition for the handover is the availability of bitsync on L1 C/A
  *
+ * \param sample_count NAP sample count
  * \param sat L1C/A Satellite ID
  * \param nap_channel Associated NAP channel
  * \param code_phase L1CA code phase [chips]
  */
-void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
+void do_l1ca_to_l2cm_handover(u32 sample_count,
+                              u16 sat,
+                              u8 nap_channel,
+                              float code_phase)
 {
   /* First, get L2C capability for the SV from NDB */
   u32 l2c_cpbl;
@@ -235,9 +239,6 @@ void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
     code_phase = 2 * GPS_L2CM_CHIPS_NUM - (GPS_L1CA_CHIPS_NUM - code_phase);
   }
 
-  /* free tracking channel found */
-  u32 ref_sample_count = nap_timing_count();
-
   /* recalculate doppler freq for L2 from L1*/
   double carrier_freq = tracking_channel_carrier_freq_get(nap_channel) *
                         GPS_L2_HZ / GPS_L1_HZ;
@@ -251,7 +252,7 @@ void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
 
   tracking_startup_params_t startup_params = {
     .sid                = sid,
-    .sample_count       = ref_sample_count,
+    .sample_count       = sample_count,
     .carrier_freq       = carrier_freq,
     .code_phase         = code_phase,
     .chips_to_correlate = L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS,
@@ -272,7 +273,7 @@ void do_l1ca_to_l2cm_handover(u16 sat, u8 nap_channel, float code_phase)
   /*   tracker_enable_iq(l2cm_channel_id); */
   /* } */
 
-  float adel = 1e3 * ref_sample_count / SAMPLE_FREQ;
+  float adel = 1e3 * sample_count / SAMPLE_FREQ;
   log_warn_sid(sid, "ADEL %s: ref_sample_count=%f ms", __FUNCTION__, adel);
 
   adel = 1e3 * NAP->TIMING_COUNT / SAMPLE_FREQ;
@@ -410,9 +411,10 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
                "ADEL %s: TIMING_COUNT=%f ms", __FUNCTION__, adel);
 
   u16 cp_int = NAP->TRK_CH[channel_info->nap_channel].CODE_PHASE_INT;
+  float cp_frac = NAP->TRK_CH[channel_info->nap_channel].CODE_PHASE_FRAC / (float)((u64)1 << 32);
   u32 status = NAP->TRK_CH[channel_info->nap_channel].STATUS;
   log_warn_sid(channel_info->sid,
-               "ADEL %s: cp_int=%u ms, status=0x%X", __FUNCTION__, (u32)cp_int, status);
+               "ADEL %s: nap_cp=%f, status=0x%X", __FUNCTION__, cp_int + cp_frac, status);
 
   log_warn_sid(channel_info->sid, "ADEL I:%d,Q:%d,diff:%f",
            data->cs[1].I, data->cs[1].Q,
@@ -428,7 +430,7 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
   /* Handle start-up case, when we have 1+1+18 integration cycles */
   if (data->startup) {
     tracker_retune(channel_info->context, common_data->carrier_freq,
-                   common_data->code_phase_rate,
+                   common_data->code_phase_rate / 2.,
                    L2CM_TRACK_LONG_STARTUP_CYCLE_INTERVAL_CHIPS);
     data->startup = false;
     return;
@@ -448,7 +450,7 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
 
   if (short_cycle) {
     tracker_retune(channel_info->context, common_data->carrier_freq,
-                   common_data->code_phase_rate,
+                   common_data->code_phase_rate / 2.,
                    L2CM_TRACK_SHORT_CYCLE_INTERVAL_CHIPS);
     return;
   }
@@ -541,7 +543,7 @@ static void tracker_gps_l2cm_update(const tracker_channel_info_t *channel_info,
   }
 
   tracker_retune(channel_info->context, common_data->carrier_freq,
-                 common_data->code_phase_rate,
+                 common_data->code_phase_rate / 2.,
                  L2CM_TRACK_LONG_CYCLE_INTERVAL_CHIPS);
 }
 
