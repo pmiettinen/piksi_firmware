@@ -519,7 +519,7 @@ static void solution_thread(void *arg)
     }
 
     if (ret == 1)
-	  log_warn("calc_PVT: RAIM repair");
+	    log_warn("calc_PVT: RAIM repair");
 
     if (time_quality < TIME_FINE) {
       /* If the time quality is not FINE then our receiver clock bias isn't
@@ -622,7 +622,7 @@ static void solution_thread(void *arg)
       for (u8 i = 0; i < n_ready_tdcp; i++) {
         /* This is effectively adding the pseudorange rate (PRR) */
         nav_meas_tdcp[i].raw_pseudorange += t_err * nav_meas_tdcp[i].raw_doppler
-                                              * GPS_L1_LAMBDA;
+                         * GPS_C / code_to_carr_freq(nav_meas_tdcp[i].sid.code);
         /* This is effecitvely adding the carrier phase range rate */
         nav_meas_tdcp[i].raw_carrier_phase += t_err * nav_meas_tdcp[i].raw_doppler;
 
